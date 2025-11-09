@@ -1,0 +1,3 @@
+/Users/fernandovasconcelos/Documents/class/build/CMakeFiles/less.dir
+/Users/fernandovasconcelos/Documents/class/build/CMakeFiles/edit_cache.dir
+/Users/fernandovasconcelos/Documents/class/build/CMakeFiles/rebuild_cache.dir

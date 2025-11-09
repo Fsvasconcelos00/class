@@ -1,0 +1,12 @@
+| Key          | Action                                  |
+| ------------ | --------------------------------------- |
+| **Space**    | Scroll forward one page                 |
+| **b**        | Scroll backward one page                |
+| **↑ / ↓**    | Move up or down one line                |
+| **g**        | Go to the beginning of the file         |
+| **G**        | Go to the end of the file               |
+| **/pattern** | Search forward for a text pattern       |
+| **?pattern** | Search backward for a text pattern      |
+| **n**        | Repeat last search (same direction)     |
+| **N**        | Repeat last search (opposite direction) |
+| **q**        | Quit `less`                             |
