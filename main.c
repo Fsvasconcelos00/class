@@ -4,6 +4,10 @@
 #include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <string.h>
+
+#define PAGE_LINES 10  // number of lines per screen
+#define MAX_LINES 10000 // maximum lines to cache positions
 
 int main(int argc, char *argv[])
 {
@@ -29,23 +33,58 @@ int main(int argc, char *argv[])
     newt.c_lflag &= ~(ICANON | ECHO);    // disable canonical mode & echo
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
-    int ch;
-    long positions[1000]; // store positions for rewind
     int current_line = 0;
-
+    int total_lines = 0;    
     char line[1024];
+    long positions[MAX_LINES]; // store positions for rewind
+
     positions[0] = ftell(input_file); // position at start of file
-    while(true)
+
+    // --- Pre-scan file line positions ---
+    while (fgets(line, sizeof(line), input_file) && total_lines < MAX_LINES - 1)
     {
-        printf("\033[2J"); // clear screen
+        positions[++total_lines] = ftell(input_file);
+    }
+
+    printf("\033[2J"); // clear screen
+    printf("Mini-Less Viewer — %s\n", argv[1]);
+    printf("Use ↑/↓ to scroll, 'q' to quit.\n\n");
+
+    // --- Main view loop ---
+    uint8_t ch;
+    bool running = true;
+
+    while(running)
+    {
+        // Clear screen before redrawing
+        printf("\033[H\033[J");
+
         printf("Mini-Less Viewer — %s\n", argv[1]);
-        printf("Use ↑/↓ to scroll, 'q' to quit.\n\n");
-        printf("%s", line);
+        printf("Use ↑/↓ to scroll, 'q' to quit. Showing lines %d-%d of ~%d\n\n",
+               current_line + 1,
+               current_line + PAGE_LINES,
+               total_lines);
+
+        // Print a page of lines
+        fseek(input_file, positions[current_line], SEEK_SET);
+        for (int i = 0; i < PAGE_LINES; i++)
+        {
+            if (fgets(line, sizeof(line), input_file))
+            {
+                printf("%4d | %s", current_line + i + 1, line);
+            }
+            else
+            {
+                break;
+            }
+        }
 
         ch = getchar();
-        if (ch == 'q') break; // quit on q
-        
-        if ((ch == 27) && (getchar() == '['))
+        if (ch == 'q')
+        {
+            running = false;
+        }
+        else if ((ch == 27) && (getchar() == '['))
         {               
             switch (getchar())
             {
@@ -53,28 +92,48 @@ int main(int argc, char *argv[])
                     if (current_line > 0)
                     {
                         current_line--;
-                        fseek(input_file, positions[current_line], SEEK_SET);
-                        if (fgets(line, sizeof(line), input_file))
-                            printf("%s", line);
                     }
-                    fflush(stdout);
+                    else
+                    {
+                        current_line = 0;
+                    }
                     break;
                 case 'B': // DOWN arrow
-                    positions[current_line] = ftell(input_file);
-                    if (fgets(line, sizeof(line), input_file))
+                    if (current_line + PAGE_LINES < total_lines)
                     {
-                        printf("%s", line);
                         current_line++;
                     }
-                    fflush(stdout);
                     break;
             }
+        }
+        else if(ch == ' ')
+        {
+            if ((current_line + PAGE_LINES) < total_lines)
+            {
+                current_line += PAGE_LINES;
+            }
+        }
+        else if(ch == 'b')
+        {
+            if ((current_line - PAGE_LINES) >= 0)
+            {
+                current_line -= PAGE_LINES;
+            }
+        }
+        else if(ch == 'g')
+        {
+            current_line = 0;
+        }
+        else if(ch == 'G')
+        {
+            current_line = total_lines - 1;
         }
     }
 
     // Restore terminal settings
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    printf("Exiting...\n");
+    fclose(input_file);
+    printf("\033[H\033[JExiting Mini-Less...\n");
 
     return 0;
 }
